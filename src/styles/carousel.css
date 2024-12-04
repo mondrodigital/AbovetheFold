@@ -1,0 +1,23 @@
+/* Carousel specific styles */
+.perspective-3000 {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  height: 800px;
+}
+
+.card-wrapper {
+  transform-origin: center center -400px;
+  backface-visibility: hidden;
+  width: 400px !important;
+  height: 800px !important;
+  margin: 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+@media (max-width: 768px) {
+  .perspective-3000 {
+    perspective: 800px;
+  }
+}
