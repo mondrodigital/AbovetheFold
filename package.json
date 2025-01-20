@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://mondrodigital.github.io/AbovetheFold",
+  "homepage": "https://mondrodigital.github.io/AbovetheFold/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
