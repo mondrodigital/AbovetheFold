@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 const projects = [
   {
@@ -33,53 +33,79 @@ const extendedProjects = [...projects, ...projects];
 const ImageCarousel = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const itemHeight = 400;
   const spacing = 40;
   const transitionDuration = 800;
+  const isMobile = window.innerWidth <= 768;
 
   useEffect(() => {
-    let lastScrollTime = Date.now();
-    
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      
-      const now = Date.now();
-      if (isTransitioning || now - lastScrollTime < transitionDuration) return;
-      
-      const direction = e.deltaY > 0 ? 1 : -1;
-      lastScrollTime = now;
-      
-      setIsTransitioning(true);
-      setCurrentIndex((prevIndex) => {
-        const newIndex = prevIndex + direction;
-        if (newIndex < 0) return extendedProjects.length - 1;
-        if (newIndex >= extendedProjects.length) return 0;
-        return newIndex;
-      });
-      
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, transitionDuration);
+      if (!isMobile) {
+        e.preventDefault();
+        if (isTransitioning) return;
+        const direction = e.deltaY > 0 ? 1 : -1;
+        setIsTransitioning(true);
+        setCurrentIndex((prevIndex) => {
+          const newIndex = prevIndex + direction;
+          if (newIndex < 0) return projects.length - 1;
+          if (newIndex >= projects.length) return 0;
+          return newIndex;
+        });
+        setTimeout(() => setIsTransitioning(false), transitionDuration);
+      }
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
-  }, [isTransitioning]);
+  }, [isTransitioning, isMobile]);
+
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isMobile) return;
+    
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setStartX(clientX);
+    setScrollLeft(carouselRef.current?.scrollLeft || 0);
+    
+    if (carouselRef.current) {
+      carouselRef.current.style.cursor = 'grabbing';
+      carouselRef.current.style.userSelect = 'none';
+    }
+  };
+
+  const handleDragEnd = () => {
+    if (!isMobile) return;
+    
+    setIsDragging(false);
+    if (carouselRef.current) {
+      carouselRef.current.style.cursor = 'grab';
+      carouselRef.current.style.removeProperty('user-select');
+    }
+  };
+
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging || !carouselRef.current || !isMobile) return;
+    
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const walk = (startX - clientX) * 1.5;
+    carouselRef.current.scrollLeft = scrollLeft + walk;
+  };
 
   const getItemStyle = (index: number) => {
-    const totalItems = extendedProjects.length;
+    if (isMobile) return {};
+
+    const totalItems = projects.length;
     let relativeIndex = (index - currentIndex + totalItems) % totalItems;
-    
-    if (relativeIndex > totalItems / 2) {
-      relativeIndex -= totalItems;
-    }
+    if (relativeIndex > totalItems / 2) relativeIndex -= totalItems;
 
     const baseOffset = (itemHeight + spacing) * relativeIndex;
     const scale = Math.max(0.8, 1 - Math.abs(relativeIndex) * 0.1);
-    
-    // Calculate blur amount based on distance from center
     const blurAmount = Math.abs(relativeIndex) * 2;
-    // Calculate opacity based on distance from center
     const opacity = Math.max(0.3, 1 - Math.abs(relativeIndex) * 0.3);
     
     return {
@@ -95,35 +121,50 @@ const ImageCarousel = () => {
   };
 
   return (
-    <div className="w-[45%] h-screen fixed right-0 top-0 flex items-center justify-center overflow-hidden">
+    <div 
+      className={`lg:w-[45%] w-full lg:h-screen lg:fixed lg:right-0 lg:top-0 flex items-center justify-center ${
+        isMobile ? 'relative mt-12 h-[50vh] mb-12' : 'overflow-hidden'
+      }`}
+    >
       <div 
-        className="w-[600px] relative"
-        style={{ height: itemHeight }}
+        ref={carouselRef}
+        className={`${
+          isMobile 
+            ? 'flex overflow-x-auto snap-x snap-mandatory hide-scrollbar w-full cursor-grab active:cursor-grabbing' 
+            : 'w-[600px] relative'
+        }`}
+        style={!isMobile ? { height: itemHeight } : {}}
+        onMouseDown={handleDragStart}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onMouseMove={handleDragMove}
+        onTouchStart={handleDragStart}
+        onTouchEnd={handleDragEnd}
+        onTouchMove={handleDragMove}
       >
-        {extendedProjects.map((project, index) => {
-          const totalItems = extendedProjects.length;
-          const relativeIndex = (index - currentIndex + totalItems) % totalItems;
-          const isCenter = relativeIndex === 0;
-          
-          return (
-            <div
-              key={index}
-              style={getItemStyle(index)}
-              className="px-8"
-            >
-              <div className="relative w-full h-full rounded-lg overflow-hidden shadow-xl bg-white">
-                <img
-                  src={project.image}
-                  alt={project.title}
-                  className="w-full h-full object-cover"
-                />
-                {!isCenter && (
-                  <div className="absolute inset-0 bg-black/30" />
-                )}
-              </div>
+        {projects.map((project, index) => (
+          <div
+            key={index}
+            style={getItemStyle(index)}
+            className={`${
+              isMobile 
+                ? 'flex-none w-[85vw] h-full mx-4 snap-center select-none' 
+                : 'px-8'
+            }`}
+          >
+            <div className="relative w-full h-full rounded-lg overflow-hidden shadow-xl bg-white">
+              <img
+                src={project.image}
+                alt={project.title}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+              {!isMobile && index === currentIndex && (
+                <div className="absolute inset-0 bg-black/30" />
+              )}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

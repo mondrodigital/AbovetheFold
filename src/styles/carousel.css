@@ -16,6 +16,16 @@
   right: 0;
 }
 
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .perspective-3000 {
     perspective: 800px;
